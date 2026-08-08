@@ -140,9 +140,13 @@ async function lerDocx(arrayBuffer) {
     return saida.trim().replace(/\.$/, '');
   }
 
+  // Número digitado no início do texto. Exige letra depois, para não confundir
+  // com "2023 foi o ano..." nem com valores.
+  const ITEM_TEXTO = /^\s*(\d{1,2}(?:\.\d{1,3}){0,3})\.?\s+(?=[A-Za-zÀ-ÿ])(.*)$/;
+
   const blocos = [];
   for (const p of doc.getElementsByTagNameNS(W, 'p')) {
-    const texto = [...p.getElementsByTagNameNS(W, 't')]
+    let texto = [...p.getElementsByTagNameNS(W, 't')]
       .map(t => t.textContent).join('').replace(/\s+/g, ' ').trim();
     let item = '';
     const numPr = filho(filho(p, 'pPr'), 'numPr');
@@ -150,6 +154,12 @@ async function lerDocx(arrayBuffer) {
       const nid = attr(filho(numPr, 'numId'), 'val');
       const ilv = attr(filho(numPr, 'ilvl'), 'val') || '0';
       if (nid && nid !== '0') item = numero(nid, ilv);
+    }
+    if (!item) {
+      // Nem todo .docx usa a numeração automática do Word. Os documentos de
+      // engenharia da CBTU trazem o número digitado no próprio texto.
+      const m = ITEM_TEXTO.exec(texto);
+      if (m) { item = m[1]; texto = m[2].trim(); }
     }
     if (texto) blocos.push({ item, pagina: 0, texto });
   }
@@ -217,17 +227,35 @@ class TR {
     return { m, item, pagina, trecho: base.slice(ini, fim).replace(/\s+/g, ' ').trim() };
   }
 
+  /* Busca dentro do título, não só no começo: no Projeto Básico a seção se chama
+     "COMPROVAÇÕES DE QUALIFICAÇÃO TÉCNICA".
+     Devolve a ÚLTIMA ocorrência — os documentos de engenharia trazem um sumário
+     no início que repete todos os títulos; o corpo vem depois. */
   secao(tituloRegex) {
+    let achado = null;
+    const rx = new RegExp(tituloRegex, 'i');
     for (const b of this.blocos) {
       if (!b.item || b.item.includes('.')) continue;
-      if (new RegExp(tituloRegex, 'i').test(b.texto.trim())) return b.item;
+      if (b.texto.length < 90 && rx.test(b.texto.trim())) achado = b.item;
     }
-    return null;
+    return achado;
   }
 
+  /* O recorte por intervalo é um superconjunto: pega os subitens numerados E os
+     parágrafos soltos entre eles. Os documentos de engenharia põem o conteúdo do
+     requisito em parágrafos sem número, sob o subtítulo. */
   itensDaSecao(numero) {
     if (!numero) return [];
-    return this.blocos.filter(b => b.item === numero || b.item.startsWith(numero + '.'));
+    const numerados = this.blocos.filter(b => b.item === numero || b.item.startsWith(numero + '.'));
+    const inicio = this.blocos.findIndex(b => b.item === numero && b.texto.length < 90);
+    if (inicio < 0) return numerados;
+    let fim = this.blocos.length;
+    for (let j = inicio + 1; j < this.blocos.length; j++) {
+      const it = this.blocos[j].item;
+      if (it && !it.includes('.') && it !== numero) { fim = j; break; }
+    }
+    const intervalo = this.blocos.slice(inicio, fim);
+    return intervalo.length >= numerados.length ? intervalo : numerados;
   }
 }
 
@@ -271,9 +299,11 @@ function habilitacao(tr) {
       trecho: '', confianca: 'pendente', observacao: 'R4' });
   }
 
+  // O separador varia: "técnico-operacional", "TÉCNICO – OPERACIONAL" (travessão),
+  // "técnico profissional". Todos precisam casar.
   for (const [rotulo, padrao] of [
-    ['qualificacao_tecnico_operacional', /t[ée]cnico[\s-]*operacional/i],
-    ['qualificacao_tecnico_profissional', /t[ée]cnico[\s-]*profissional/i]]) {
+    ['qualificacao_tecnico_operacional', /t[ée]cnic[oa][\s\-–—]*operacional/i],
+    ['qualificacao_tecnico_profissional', /t[ée]cnic[oa][\s\-–—]*profissional/i]]) {
     const alvo = itens.find(b => padrao.test(b.texto));
     achados.push(alvo
       ? { campo: rotulo, valor: 'exigida', item: alvo.item, pagina: alvo.pagina,
@@ -283,9 +313,15 @@ function habilitacao(tr) {
           observacao: 'não mencionada no TR — típico fora de engenharia' });
   }
 
-  const requisitos = itens
+  // Subitens numerados quando existirem; senão, os parágrafos do intervalo da
+  // seção — que é como o Projeto Básico organiza.
+  let requisitos = itens
     .filter(b => b.item && b.item.includes('.') && b.texto.length > 40)
     .map(b => ({ item: b.item, pagina: b.pagina, texto: b.texto }));
+  if (!requisitos.length) {
+    requisitos = itens.filter(b => b.texto.length > 60)
+      .map(b => ({ item: b.item || sec || '', pagina: b.pagina, texto: b.texto }));
+  }
   achados.push({ campo: 'requisitos_habilitacao', valor: requisitos.length ? requisitos : null,
     item: sec || '', pagina: itens[0]?.pagina || 0,
     trecho: sec ? `${requisitos.length} requisito(s) na seção ${sec}` : '',
@@ -297,7 +333,20 @@ function habilitacao(tr) {
 function extrair(tr) {
   const r = [];
 
-  r.push(achar(tr, 'natureza_objeto', [
+  // Antes de tudo: alguns TRs se autoclassificam, citando o RILC. É o sinal mais
+  // confiável que existe, e vale procurar no documento inteiro.
+  //   "O objeto pretendido pode ser caracterizado como SERVIÇO COMUM DE ENGENHARIA,
+  //    nos termos do art. 4º, Inciso LIX, do RILC-CBTU."
+  const explicita = achar(tr, 'natureza_objeto', [
+    ['caracterizad[oa]\\s+como\\s+(?:um[a]?\\s+)?OBRA\\s+DE\\s+ENGENHARIA', 'obra de engenharia', 'alta'],
+    ['caracterizad[oa]\\s+como\\s+(?:um[a]?\\s+)?SERVI[ÇC]O\\s+COMUM\\s+DE\\s+ENGENHARIA', 'serviço comum de engenharia', 'alta'],
+    ['caracterizad[oa]\\s+como\\s+(?:um[a]?\\s+)?SERVI[ÇC]O\\s+DE\\s+ENGENHARIA', 'serviço comum de engenharia', 'alta'],
+    ['caracterizad[oa]\\s+como\\s+(?:um[a]?\\s+)?(?:BEM|MATERIAL)\\b', 'material', 'alta'],
+    ['caracterizad[oa]\\s+como\\s+(?:um[a]?\\s+)?SERVI[ÇC]O\\s+COMUM\\b', 'serviço comum', 'alta'],
+  ], 'o próprio TR classifica o objeto, citando o RILC — é o sinal mais confiável');
+
+  if (explicita.valor !== null) r.push(explicita);
+  else r.push(achar(tr, 'natureza_objeto', [
     ['dedica[çc][ãa]o\\s+exclusiva\\s+de\\s+m[ãa]o\\s+de\\s+obra', 'serviço com dedicação exclusiva', 'alta'],
     ['obra\\s+de\\s+engenharia', 'obra de engenharia', 'alta'],
     ['servi[çc]os?\\s+(?:comum\\s+)?de\\s+engenharia', 'serviço comum de engenharia', 'alta'],
@@ -306,7 +355,7 @@ function extrair(tr) {
     ['\\baquisi[çc][ãa]o\\s+d[eo]s?\\b|\\bfornecimento\\s+d[eo]s?\\b|\\bcompra\\s+d[eo]s?\\b', 'material', 'alta'],
     ['contrata[çc][ãa]o\\s+de\\s+(?:empresa\\s+)?(?:especializada\\s+)?para\\s+presta[çc][ãa]o', 'serviço comum', 'alta'],
     ['presta[çc][ãa]o\\s+de\\s+servi[çc]o', 'serviço comum', 'media'],
-  ], 'escolhe qual dos cinco modelos será usado — R1 · lido na abertura do TR', { abertura: 4000 }));
+  ], 'escolhe qual dos cinco modelos será usado — R1 · lido na abertura do TR', { abertura: 6000 }));
 
   r.push(achar(tr, 'objeto_continuado', [
     ['natureza\\s+comum\\s+e\\s+cont[íi]nua|servi[çc]os?\\s+cont[íi]nuos?', 'sim', 'alta'],
@@ -417,8 +466,22 @@ function extrair(tr) {
   ], 'R4: se obrigatória, exige justificativa no TR'));
 
   r.push(achar(tr, 'exige_registro_conselho', [
-    ['registro\\s+(?:ou\\s+inscri[çc][ãa]o\\s+)?n[oa]\\s+(CREA|CAU|CRA|CRM|CRO|CRC|CRQ)\\b', g, 'alta'],
-  ]));
+    ['(?:registro|inscri[çc][ãa]o|certid[ãa]o)\\s+(?:ou\\s+\\w+\\s+)?n[oa]s?\\s+(CREA|CAU|CRA|CRM|CRO|CRC|CRQ)\\b', g, 'alta'],
+    ['\\b(CREA)\\b', 'CREA', 'media'],
+    ['\\b(CAU)\\b', 'CAU', 'media'],
+  ], 'em engenharia, entra na qualificação técnico-operacional'));
+
+  r.push(achar(tr, 'exige_art', [
+    ['Anota[çc][õo]es?\\s+e\\s+Registros?\\s+de\\s+Responsabilidade\\s+T[ée]cnicas?', 'sim', 'alta'],
+    ['Anota[çc][ãa]o\\s+de\\s+Responsabilidade\\s+T[ée]cnica', 'sim', 'alta'],
+  ], 'ART/RRT junto ao CREA ou CAU — cláusula própria em obras e serviços de engenharia'));
+
+  // Anexo dedicado é sinal forte; menção solta pede conferência.
+  r.push(achar(tr, 'matriz_riscos', [
+    ['ANEXO\\s+[A-Z0-9]+\\s*[-–—:]?\\s*MATRIZ\\s+DE\\s+RISCOS?', 'sim — anexo próprio', 'alta'],
+    ['matriz\\s+de\\s+riscos?\\s+(?:consta|est[áa]|segue|anexa)', 'sim', 'alta'],
+    ['matriz\\s+de\\s+riscos?', 'sim', 'media'],
+  ], 'R3: obrigatória em contratação integrada e semi-integrada · vira anexo do edital'));
 
   r.push(achar(tr, 'valor_total_estimado', [
     ['valor\\s+(?:total\\s+)?estimad[oa].{0,50}?(R\\$\\s*[\\d.]+,\\d{2})', g, 'alta'],
