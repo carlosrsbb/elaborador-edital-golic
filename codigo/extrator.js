@@ -144,6 +144,22 @@ async function lerDocx(arrayBuffer) {
   // com "2023 foi o ano..." nem com valores.
   const ITEM_TEXTO = /^\s*(\d{1,2}(?:\.\d{1,3}){0,3})\.?\s+(?=[A-Za-zÀ-ÿ])(.*)$/;
 
+  /* Tabelas, à parte. Achatadas em parágrafos elas viram células soltas e a
+     relação entre colunas se perde — e é numa tabela que o TR de engenharia põe
+     as parcelas de maior relevância com seus quantitativos. */
+  const tabelas = [];
+  for (const tbl of doc.getElementsByTagNameNS(W, 'tbl')) {
+    const linhas = [];
+    for (const linha of tbl.getElementsByTagNameNS(W, 'tr')) {
+      const celulas = [...linha.getElementsByTagNameNS(W, 'tc')].map(tc =>
+        [...tc.getElementsByTagNameNS(W, 'p')]
+          .map(p => [...p.getElementsByTagNameNS(W, 't')].map(t => t.textContent).join(''))
+          .join(' ').replace(/\s+/g, ' ').trim());
+      if (celulas.some(Boolean)) linhas.push(celulas);
+    }
+    if (linhas.length > 1) tabelas.push(linhas);
+  }
+
   const blocos = [];
   for (const p of doc.getElementsByTagNameNS(W, 'p')) {
     let texto = [...p.getElementsByTagNameNS(W, 't')]
@@ -163,13 +179,14 @@ async function lerDocx(arrayBuffer) {
     }
     if (texto) blocos.push({ item, pagina: 0, texto });
   }
-  return blocos;
+  return { blocos, tabelas };
 }
 
 // ═══════════════════════════════════════════════════════════ o TR
 
 class TR {
-  constructor(blocos) {
+  constructor(blocos, tabelas = []) {
+    this.tabelas = tabelas;
     this.blocos = blocos.filter(b => b.texto);
     this.inicios = [];
     this.refs = [];
@@ -322,6 +339,34 @@ function habilitacao(tr) {
     requisitos = itens.filter(b => b.texto.length > 60)
       .map(b => ({ item: b.item || sec || '', pagina: b.pagina, texto: b.texto }));
   }
+  /* Parcelas de maior relevância técnica. Todo TR ou PB de engenharia deve
+     destacá-las; vêm numa tabela, com o quantitativo previsto e o mínimo
+     aceitável para o atestado. Não as tendo, o documento volta à área
+     demandante — não é o pregoeiro que as inventa. Regra R18. */
+  const CABECA = /maior\s+relev[âa]ncia|relev[âa]ncia\s+t[ée]cnica/i;
+  const parcelas = [];
+  let cabecalhoAchado = '';
+  for (const linhas of tr.tabelas || []) {
+    const cabecalho = linhas[0].join(' | ');
+    if (!CABECA.test(cabecalho)) continue;
+    cabecalhoAchado = cabecalho;
+    for (const celulas of linhas.slice(1)) {
+      if (!celulas[0] || CABECA.test(celulas[0])) continue;
+      parcelas.push({ servico: celulas[0],
+                      quantidade_prevista: celulas[1] || '',
+                      quantidade_minima: celulas[2] || '' });
+    }
+    if (parcelas.length) break;
+  }
+  achados.push(parcelas.length
+    ? { campo: 'parcelas_relevantes', valor: parcelas, item: sec || '', pagina: 0,
+        trecho: `${parcelas.length} parcela(s) · colunas: ${cabecalhoAchado}`.slice(0, 280),
+        confianca: 'alta',
+        observacao: 'transcritas para a qualificação técnico-operacional do edital' }
+    : { campo: 'parcelas_relevantes', valor: null, item: '', pagina: 0, trecho: '',
+        confianca: 'pendente',
+        observacao: 'todo TR ou PB de engenharia deve destacá-las — ver regra R18' });
+
   achados.push({ campo: 'requisitos_habilitacao', valor: requisitos.length ? requisitos : null,
     item: sec || '', pagina: itens[0]?.pagina || 0,
     trecho: sec ? `${requisitos.length} requisito(s) na seção ${sec}` : '',
@@ -526,18 +571,33 @@ export async function extrairDoArquivo(arquivo) {
       ? 'PDF ainda não é lido no navegador — por ora, envie o TR em .docx'
       : 'formato não suportado: envie um .docx');
   }
-  const blocos = await lerDocx(await arquivo.arrayBuffer());
+  const { blocos, tabelas } = await lerDocx(await arquivo.arrayBuffer());
   if (!blocos.length) throw new Error('o documento não tem texto — pode ser digitalizado');
-  const tr = new TR(blocos);
+  const tr = new TR(blocos, tabelas);
   const achados = extrair(tr);
+
+  // R18 — engenharia sem parcelas de maior relevância não é lacuna do pregoeiro:
+  // é defeito do documento, e ele volta para a área demandante.
+  const natureza = achados.find(a => a.campo === 'natureza_objeto')?.valor || '';
+  const parcelas = achados.find(a => a.campo === 'parcelas_relevantes')?.valor;
+  const engenharia = /engenharia/i.test(String(natureza));
+
   return {
     achados,
+    devolver: engenharia && !parcelas
+      ? 'O documento é de engenharia e não define as parcelas de maior relevância ' +
+        'técnica, com os quantitativos mínimos. Sem elas não há como redigir a ' +
+        'qualificação técnico-operacional. O documento precisa voltar à área ' +
+        'demandante para que as defina.'
+      : null,
     resumo: {
       blocos: tr.blocos.length,
+      tabelas: tabelas.length,
       caracteres: tr.texto.length,
       localizados: achados.filter(a => a.valor !== null).length,
       total: achados.length,
       alta: achados.filter(a => a.confianca === 'alta').length,
+      engenharia,
     },
   };
 }

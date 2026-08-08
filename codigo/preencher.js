@@ -7,6 +7,7 @@
 
 const $  = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
+const esc = t => String(t == null ? '' : t).replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
 
 /* Como cada campo do extrator chega à tela.
    `tipo` diz o que fazer com o valor; `casar` traduz o texto do TR para a opção
@@ -124,6 +125,31 @@ export function preencher(achados, { origens, explicadores, aoTerminar } = {}) {
     }
     const o = lista.closest('.campo')?.querySelector('.origem');
     if (o) o.innerHTML = origemHTML(req);
+  }
+
+  // parcelas de maior relevância: só existem em engenharia
+  const parc = porCampo['parcelas_relevantes'];
+  const campoParcelas = $('#campo-parcelas');
+  const natureza = porCampo['natureza_objeto']?.valor || '';
+  const ehEngenharia = /engenharia/i.test(String(natureza));
+  if (campoParcelas) {
+    campoParcelas.style.display = ehEngenharia ? '' : 'none';
+    if (ehEngenharia && parc) {
+      const conteudo = $('#parcelas-conteudo');
+      if (Array.isArray(parc.valor)) {
+        conteudo.innerHTML =
+          '<table class="parcelas"><thead><tr><th>Serviço</th>' +
+          '<th>Prevista</th><th>Mínima aceitável</th></tr></thead><tbody>' +
+          parc.valor.map(p => `<tr><td>${esc(p.servico)}</td>` +
+            `<td>${esc(p.quantidade_prevista)}</td>` +
+            `<td>${esc(p.quantidade_minima)}</td></tr>`).join('') +
+          '</tbody></table>';
+      } else {
+        conteudo.innerHTML = '<div class="derivado" style="color:#a10f00">' +
+          'Não definidas no documento — o TR precisa voltar à área demandante.</div>';
+      }
+      $('#ex-parcelas').innerHTML = origemHTML(parc);
+    }
   }
 
   if (explicadores) for (const f of Object.values(explicadores)) f();

@@ -78,6 +78,18 @@
   ul.requisitos input[type=checkbox]{margin-top:3px;flex:none;width:16px;height:16px}
   ul.requisitos li:has(input:not(:checked)){background:#fafafa;color:#999}
   ul.requisitos li:has(input:not(:checked)) span{text-decoration:line-through}
+  /* R18: bloqueio — o documento volta à área demandante */
+  .devolver{border:2px solid var(--vermelho);background:#fdf0ee;border-radius:10px;
+            padding:16px 20px;margin-bottom:20px}
+  .devolver-titulo{font-weight:700;color:#a10f00;font-size:15px;margin-bottom:6px}
+  .devolver p{margin:0 0 6px;font-size:13px;line-height:1.5}
+  .devolver-rodape{color:#7a1a0c;font-style:italic}
+  /* parcelas de maior relevância técnica */
+  table.parcelas{width:100%;border-collapse:collapse;margin-top:6px;font-size:13px;background:#fff}
+  table.parcelas th{background:#eef2f7;text-align:left;padding:7px 9px;font-weight:600;
+                    color:var(--azul-escuro);border:1px solid var(--borda)}
+  table.parcelas td{padding:7px 9px;border:1px solid var(--borda)}
+  table.parcelas td:nth-child(n+2){white-space:nowrap;width:1%}
   /* SRP: seção própria, porque tem decisões que não são do objeto */
   fieldset.srp{border:2px solid var(--verde);background:#f6fbf6;margin-top:4px}
   fieldset.srp legend{background:var(--verde);color:#fff;border-radius:4px;
@@ -115,6 +127,14 @@
          <strong id="qtd-pendentes">6</strong> não localizados ·
          <button type="button" class="link" id="btn-trocar">trocar arquivo</button></p>
     </div>
+  </div>
+
+  <!-- R18 — defeito do documento, não lacuna do pregoeiro -->
+  <div class="devolver" id="devolver" style="display:none">
+    <div class="devolver-titulo">⛔ Este documento precisa voltar à área demandante</div>
+    <p id="devolver-motivo"></p>
+    <p class="devolver-rodape">Não é campo para o pregoeiro preencher: a definição é técnica e
+      cabe a quem demandou a contratação.</p>
   </div>
 
   <div class="aviso">
@@ -279,6 +299,12 @@
             <label><input type="radio" name="qtp" checked> Não exigida</label>
           </div>
           <div class="origem"><span class="selo pendente">não consta</span><span class="fonte">em obra: RT registrado, vínculo com o quadro permanente e ART · desligá-la retira os itens 9.19.7 a 9.19.12 do modelo</span></div>
+        </div>
+
+        <div class="campo" id="campo-parcelas" style="display:none">
+          <label>Parcelas de maior relevância técnica</label>
+          <div id="parcelas-conteudo"></div>
+          <div class="origem" id="ex-parcelas"></div>
         </div>
 
         <div class="campo">
@@ -838,7 +864,7 @@ import { extrairDoArquivo } from './codigo/extrator.js';
 import { preencher } from './codigo/preencher.js';
 
 window.__extrairTR = async (arquivo) => {
-  const { achados, resumo } = await extrairDoArquivo(arquivo);
+  const { achados, resumo, devolver } = await extrairDoArquivo(arquivo);
   const f = window.__form;
 
   // leitura nova: o que antes era correção deixa de ser
@@ -855,8 +881,14 @@ window.__extrairTR = async (arquivo) => {
     },
   });
 
+  // R18 — o bloqueio é exibido aqui, junto de quem o conhece, e não na função de
+  // upload: assim vale por qualquer caminho que chegue à leitura.
+  const alerta = document.getElementById('devolver');
+  alerta.style.display = devolver ? '' : 'none';
+  if (devolver) document.getElementById('devolver-motivo').textContent = devolver;
+
   window.__achados = achados;   // disponível no console, para conferência
-  return { achados, resumo };
+  return { achados, resumo, devolver };
 };
 </script>
 </body>
