@@ -99,10 +99,10 @@
   <div class="upload" id="area-upload">
     <div id="upload-vazio">
       <div class="upload-icone">📄</div>
-      <p class="upload-titulo">Arraste aqui o PDF do Termo de Referência</p>
+      <p class="upload-titulo">Arraste aqui o Termo de Referência</p>
       <p class="upload-sub">ou <button type="button" class="link" id="btn-escolher">escolha o arquivo</button> ·
-         aceita também o Projeto Básico, em obras</p>
-      <input type="file" id="arquivo" accept="application/pdf" hidden>
+         aceita o Projeto Básico, em obras · <b>formato .docx</b></p>
+      <input type="file" id="arquivo" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
     </div>
     <div id="upload-lendo" style="display:none">
       <p class="upload-titulo">Lendo o documento…</p>
@@ -541,35 +541,44 @@
   area.addEventListener('drop', e => {
     const f = e.dataTransfer.files[0];
     if (!f) return;
-    if (f.type !== 'application/pdf') { alert('O arquivo precisa ser um PDF.'); return; }
+    if (!f.name.toLowerCase().endsWith('.docx')) {
+      alert(f.name.toLowerCase().endsWith('.pdf')
+        ? 'PDF ainda não é lido no navegador.\n\nPor ora, envie o Termo de Referência em .docx.'
+        : 'O arquivo precisa ser um .docx.');
+      return;
+    }
     receber(f);
   });
 
-  function receber(arquivo){
+  async function receber(arquivo){
     vazio.style.display = 'none'; pronto.style.display = 'none';
-    lendo.style.display = ''; barra.style.width = '0';
-    // No sistema real, aqui o PDF vai para o extrator (config/extrair-do-tr.py).
-    // No protótipo, só a sequência de estados da interface.
-    const etapas = [
-      [20, 'extraindo o texto do PDF'],
-      [45, 'localizando objeto e natureza da contratação'],
-      [70, 'lendo participação, garantia e prazos'],
-      [90, 'conferindo as regras do RILC'],
-      [100, 'pronto']
-    ];
-    let i = 0;
-    const passo = setInterval(() => {
-      if (i >= etapas.length) {
-        clearInterval(passo);
-        lendo.style.display = 'none'; pronto.style.display = '';
-        area.classList.add('ok');
-        document.getElementById('nome-arquivo').textContent = arquivo.name;
-        return;
-      }
-      barra.style.width = etapas[i][0] + '%';
-      etapa.textContent = etapas[i][1];
-      i++;
-    }, 420);
+    lendo.style.display = ''; barra.style.width = '10%';
+    etapa.textContent = 'abrindo o documento';
+    area.classList.remove('ok', 'erro');
+
+    try {
+      if (!window.__extrairTR) throw new Error('o leitor não carregou — recarregue a página');
+      barra.style.width = '40%'; etapa.textContent = 'reconstruindo a numeração dos itens';
+      await new Promise(r => setTimeout(r, 60));   // deixa a tela pintar antes do trabalho pesado
+
+      const { resumo } = await window.__extrairTR(arquivo);
+
+      barra.style.width = '100%'; etapa.textContent = 'pronto';
+      lendo.style.display = 'none'; pronto.style.display = '';
+      area.classList.add('ok');
+      document.getElementById('nome-arquivo').textContent = arquivo.name;
+      document.getElementById('qtd-lidos').textContent = resumo.localizados;
+      document.getElementById('qtd-pendentes').textContent = resumo.total - resumo.localizados;
+      document.querySelector('.aviso').innerHTML =
+        `<strong>Lido de ${arquivo.name}.</strong> ${resumo.localizados} de ${resumo.total} campos ` +
+        `localizados, ${resumo.alta} com confiança alta. Cada um mostra <strong>o item do TR</strong> ` +
+        `de onde saiu.<br><strong>Todos são editáveis:</strong> se a captação estiver errada, corrija ` +
+        `aqui — o que você digitar prevalece sobre o que foi lido.`;
+    } catch (e) {
+      lendo.style.display = 'none'; vazio.style.display = '';
+      area.classList.add('erro');
+      alert('Não consegui ler este arquivo.\n\n' + e.message);
+    }
   }
 
   // -------------------------- correção manual do que foi lido do TR
@@ -694,21 +703,24 @@
 
   // ---- efeito de cada opção sobre o texto do edital
   // Os números vêm da contagem nos modelos oficiais V2025, não de estimativa.
-  const TR_ORIGEM = {
-    srp:   'TR · <b>item 3</b> · p. 2',
-    cons:  'TR · <b>item 14.2</b> · p. 16 — "não é aberta a cooperativas e consórcios"',
-    subc:  'TR · <b>item 14.3</b> · p. 16 — "vedada [...] admitindo-se, no entanto"',
-    meepp: 'TR · <b>item 14.1</b> · p. 16',
+  // Procedência de cada campo com explicação dinâmica. Começa com o exemplo do TR
+  // de calçados e é substituída pela leitura real quando um TR é enviado.
+  const ORIGENS = {
+    'ex-srp':   '<span class="selo alta">alta</span><span class="fonte">TR · <b>item 3</b> · p. 2</span>',
+    'ex-cons':  '<span class="selo alta">alta</span><span class="fonte">TR · <b>item 14.2</b> · p. 16 — "não é aberta a cooperativas e consórcios"</span>',
+    'ex-subc':  '<span class="selo alta">alta</span><span class="fonte">TR · <b>item 14.3</b> · p. 16 — "vedada [...] admitindo-se, no entanto"</span>',
+    'ex-meepp': '<span class="selo alta">alta</span><span class="fonte">TR · <b>item 14.1</b> · p. 16</span>',
   };
-  const efeito = (id, selo, texto, origem) => {
+  window.ORIGENS = ORIGENS;
+
+  const efeito = (id, selo, texto) => {
     const foiCorrigido = corrigidos.has(id);
-    document.getElementById(id).innerHTML =
-      `<span class="selo ${foiCorrigido ? 'media' : selo}">${foiCorrigido ? 'corrigido' : selo}</span>` +
-      `<span class="fonte">` +
-      (foiCorrigido
-        ? '<b>alterado pelo pregoeiro</b> — prevalece sobre a leitura do TR. '
-        : (origem ? origem + ' · ' : '')) +
-      `${texto}</span>`;
+    const cabeca = foiCorrigido
+      ? '<span class="selo media">corrigido</span><span class="fonte">' +
+        '<b>alterado pelo pregoeiro</b> — prevalece sobre a leitura do TR. '
+      : (ORIGENS[id] || `<span class="selo ${selo}">${selo}</span><span class="fonte">`)
+          .replace(/<\/span>$/, ' · ');
+    document.getElementById(id).innerHTML = cabeca + texto + '</span>';
   };
 
   function explicarSRP(){
@@ -717,7 +729,7 @@
       ? '<b>entram 3 seções</b> — Do Registro de Preço, Da Ata de Registro de Preços e Da ' +
         'Formação do Cadastro de Reserva — e a <b>minuta da Ata</b> como anexo, com 11 seções ' +
         'próprias. A numeração seguinte desloca em +3.'
-      : 'o edital não terá as seções de registro de preços nem a minuta da Ata.', TR_ORIGEM.srp);
+      : 'o edital não terá as seções de registro de preços nem a minuta da Ata.');
   }
 
   function explicarConsorcio(){
@@ -728,7 +740,7 @@
         'duração mínimo, compromisso de não alterar constituição ou BDI, habilitação ' +
         'individual de cada consorciada e credenciamento pela empresa líder.'
       : 'fica apenas a cláusula de vedação (3.2). As 10 cláusulas de consórcio não entram.',
-      TR_ORIGEM.cons);
+      );
   }
 
   function explicarSubc(){
@@ -738,7 +750,7 @@
         'subcontratada e responsabilidade da contratada.'
       : v === 'vedada, com ressalva'
         ? 'entra a vedação com a ressalva do TR — confira se a ressalva está transcrita corretamente.'
-        : 'entra apenas a vedação expressa (3.2).', TR_ORIGEM.subc);
+        : 'entra apenas a vedação expressa (3.2).');
   }
 
   function explicarMeepp(){
@@ -752,13 +764,27 @@
         ? '<b>cota reservada</b>: o item se divide entre cota principal e cota de ME/EPP — ' +
           'informe o percentual. ' + comum + '.'
         : 'ampla concorrência, com direito de preferência e regularização fiscal tardia. ' + comum + '.',
-      TR_ORIGEM.meepp);
+      );
   }
 
   Object.assign(EXPLICADORES, {
     'ex-srp': explicarSRP, 'ex-cons': explicarConsorcio,
     'ex-subc': explicarSubc, 'ex-meepp': explicarMeepp,
   });
+
+  // Ponte para o módulo que faz a leitura do TR (codigo/extrator.js).
+  // Script comum e módulo têm escopos separados; isto é o que os liga.
+  window.__form = {
+    origens: ORIGENS,
+    explicadores: EXPLICADORES,
+    corrigidos,
+    atualizarContador: () => atualizarContador(),
+    aplicarR11: () => aplicarR11(),
+    aplicarR14: () => aplicarR14(),
+    mostrarSRP: () => mostrarSRP(),
+    explicarIRP: () => explicarIRP(),
+    explicarAdesao: () => explicarAdesao(),
+  };
 
   // ---------------------------------------------- bloco de SRP
   const blocoSRP = document.getElementById('bloco-srp');
@@ -804,6 +830,34 @@
   explicarSRP(); explicarConsorcio(); explicarSubc(); explicarMeepp();
   mostrarSRP(); explicarIRP(); explicarAdesao();
   aplicarR11(); aplicarR14(); atualizarContador();
+</script>
+
+<!-- Leitura do TR. Módulo separado porque usa import; o script acima é comum. -->
+<script type="module">
+import { extrairDoArquivo } from './codigo/extrator.js';
+import { preencher } from './codigo/preencher.js';
+
+window.__extrairTR = async (arquivo) => {
+  const { achados, resumo } = await extrairDoArquivo(arquivo);
+  const f = window.__form;
+
+  // leitura nova: o que antes era correção deixa de ser
+  f.corrigidos.clear();
+
+  preencher(achados, {
+    origens: f.origens,
+    explicadores: f.explicadores,
+    aoTerminar: () => {
+      // as regras derivadas precisam correr de novo sobre os valores novos
+      f.aplicarR11(); f.aplicarR14();
+      f.mostrarSRP(); f.explicarIRP(); f.explicarAdesao();
+      f.atualizarContador();
+    },
+  });
+
+  window.__achados = achados;   // disponível no console, para conferência
+  return { achados, resumo };
+};
 </script>
 </body>
 </html>
