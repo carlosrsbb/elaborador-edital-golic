@@ -1,0 +1,28 @@
+# Nada de documento interno da GOLIC neste repositório.
+# As regras abaixo são uma segunda barreira: mesmo que um arquivo desses seja
+# copiado para cá por engano, o git não o envia.
+
+# Termos de Referência, editais, modelos, processos
+*.pdf
+*.docx
+*.doc
+*.odt
+*.xlsx
+*.xls
+
+# saídas do extrator (contêm trechos dos TRs)
+*.extraido.json
+saidas/
+entradas/
+modelos/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# sistema
+Thumbs.db
+desktop.ini
+.DS_Store

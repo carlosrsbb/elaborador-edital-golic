@@ -1,0 +1,809 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elaborador de Edital — GOLIC/STU-REC</title>
+
+<!-- Design System do Gov.br: o mesmo que a AGU usa. Pacote público, versionado e acessível. -->
+<link rel="stylesheet" href="https://cdngovbr-ds.estaleiro.serpro.gov.br/design-system/fonts/rawline/css/rawline.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway:300,400,500,600,700,800,900&display=swap">
+<link rel="stylesheet" href="https://cdngovbr-ds.estaleiro.serpro.gov.br/design-system/components/core/dist/core.min.css">
+
+<style>
+  :root{ --azul:#1351b4; --azul-escuro:#0c326f; --cinza:#f8f8f8; --borda:#ccc;
+         --verde:#168821; --amarelo:#ffcd07; --vermelho:#e52207; }
+  *{box-sizing:border-box}
+  body{font-family:Rawline,Raleway,sans-serif;font-size:14px;margin:0;background:#fff;color:#333}
+  header{background:var(--azul);color:#fff;padding:18px 24px}
+  header h1{margin:0;font-size:20px;font-weight:600}
+  header p{margin:4px 0 0;opacity:.85;font-size:13px}
+  main{max-width:1180px;margin:0 auto;padding:24px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  @media (max-width:900px){.grid{grid-template-columns:1fr}}
+  fieldset{border:1px solid var(--borda);border-radius:8px;padding:18px 20px;margin:0 0 20px}
+  legend{font-weight:600;color:var(--azul-escuro);padding:0 8px;font-size:15px}
+  .campo{margin-bottom:16px}
+  label{display:block;font-weight:500;margin-bottom:5px}
+  input[type=text],input[type=date],input[type=time],select,textarea{
+    width:100%;padding:9px 11px;border:1px solid var(--borda);border-radius:4px;
+    font-family:inherit;font-size:14px;background:var(--cinza)}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--azul);background:#fff}
+  .origem{font-size:12px;margin-top:4px;display:flex;align-items:center;gap:6px}
+  .selo{display:inline-block;padding:1px 7px;border-radius:99px;font-size:11px;font-weight:600}
+  .alta{background:#e3f5e1;color:#116427}
+  .media{background:#fff8dd;color:#8a6d00}
+  .pendente{background:#fdecea;color:#a10f00}
+  .fonte{color:#666}
+  .radio-linha{display:flex;gap:18px;flex-wrap:wrap;margin-top:4px}
+  .radio-linha label{font-weight:400;display:flex;align-items:center;gap:6px;margin:0}
+  .aviso{background:#fff8dd;border-left:4px solid var(--amarelo);padding:12px 16px;
+         border-radius:0 6px 6px 0;margin-bottom:20px;font-size:13px}
+  .barra{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--borda);
+         padding:14px 24px;display:flex;gap:12px;justify-content:flex-end;align-items:center}
+  button{font-family:inherit;font-size:14px;font-weight:600;padding:10px 22px;border-radius:99px;
+         border:none;cursor:pointer}
+  .primario{background:var(--azul);color:#fff}
+  .primario:hover{background:var(--azul-escuro)}
+  .secundario{background:#fff;color:var(--azul);border:1px solid var(--azul)}
+  .contador{margin-right:auto;font-size:13px;color:#555}
+  h2.secao{font-size:16px;color:var(--azul-escuro);margin:0 0 4px}
+  p.sub{margin:0 0 16px;color:#666;font-size:13px}
+  /* entrada do TR */
+  .upload{border:2px dashed var(--azul);border-radius:10px;background:#f0f5fc;
+          padding:26px 20px;text-align:center;margin-bottom:20px;transition:.15s}
+  .upload.sobre{background:#dbe8fa;border-color:var(--azul-escuro)}
+  .upload.ok{border-style:solid;border-color:var(--verde);background:#f1faf1}
+  .upload-icone{font-size:30px;line-height:1}
+  .upload-titulo{margin:8px 0 4px;font-weight:600;font-size:15px;color:var(--azul-escuro)}
+  .upload-sub{margin:0;font-size:13px;color:#555}
+  .link{background:none;border:none;color:var(--azul);font:inherit;font-weight:600;
+        text-decoration:underline;cursor:pointer;padding:0}
+  .barra-progresso{height:6px;background:#d7e3f5;border-radius:99px;overflow:hidden;
+                   max-width:340px;margin:12px auto}
+  #progresso{height:100%;width:0;background:var(--azul);transition:width .25s}
+  /* campo derivado, não perguntado */
+  .derivado{background:#eef2f7;border:1px solid #c9d6e6;border-radius:4px;
+            padding:9px 11px;font-weight:600;color:var(--azul-escuro)}
+  /* habilitação: é o bloco que o pregoeiro mais confere */
+  fieldset.habilitacao{border-color:var(--azul);background:#fbfcfe}
+  fieldset.habilitacao legend{background:var(--azul);color:#fff;border-radius:4px;
+                              padding:3px 12px;font-size:14px}
+  ul.requisitos{list-style:none;margin:6px 0 0;padding:0;border:1px solid var(--borda);
+                border-radius:6px;background:#fff}
+  ul.requisitos li{border-bottom:1px solid #eee;padding:10px 12px}
+  ul.requisitos li:last-child{border-bottom:none}
+  ul.requisitos label{display:flex;gap:10px;align-items:flex-start;font-weight:400;margin:0;
+                      cursor:pointer;line-height:1.45}
+  ul.requisitos input[type=checkbox]{margin-top:3px;flex:none;width:16px;height:16px}
+  ul.requisitos li:has(input:not(:checked)){background:#fafafa;color:#999}
+  ul.requisitos li:has(input:not(:checked)) span{text-decoration:line-through}
+  /* SRP: seção própria, porque tem decisões que não são do objeto */
+  fieldset.srp{border:2px solid var(--verde);background:#f6fbf6;margin-top:4px}
+  fieldset.srp legend{background:var(--verde);color:#fff;border-radius:4px;
+                      padding:3px 14px;font-size:14px}
+  fieldset.srp .grid{gap:0 24px}
+  fieldset.srp textarea{background:#fff}
+  input[readonly].derivado{width:100%}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Elaborador de Edital — GOLIC/STU-REC</h1>
+  <p>Companhia Brasileira de Trens Urbanos · Lei 13.303/2016 e RILC/CBTU</p>
+</header>
+
+<main>
+  <!-- ============================ ENTRADA DO TR -->
+  <div class="upload" id="area-upload">
+    <div id="upload-vazio">
+      <div class="upload-icone">📄</div>
+      <p class="upload-titulo">Arraste aqui o PDF do Termo de Referência</p>
+      <p class="upload-sub">ou <button type="button" class="link" id="btn-escolher">escolha o arquivo</button> ·
+         aceita também o Projeto Básico, em obras</p>
+      <input type="file" id="arquivo" accept="application/pdf" hidden>
+    </div>
+    <div id="upload-lendo" style="display:none">
+      <p class="upload-titulo">Lendo o documento…</p>
+      <div class="barra-progresso"><div id="progresso"></div></div>
+      <p class="upload-sub" id="etapa">extraindo o texto</p>
+    </div>
+    <div id="upload-pronto" style="display:none">
+      <p class="upload-titulo">✅ <span id="nome-arquivo"></span></p>
+      <p class="upload-sub"><strong id="qtd-lidos">16</strong> campos lidos ·
+         <strong id="qtd-pendentes">6</strong> não localizados ·
+         <button type="button" class="link" id="btn-trocar">trocar arquivo</button></p>
+    </div>
+  </div>
+
+  <div class="aviso">
+    <strong>Protótipo de interface.</strong> Os campos da esquerda vieram da leitura automática do
+    <em>TR nº 002-2026/COSET</em> — calçados de segurança. Cada um mostra <strong>o item e a página
+    do TR</strong> de onde a informação foi tirada, e o quanto a leitura é confiável.
+    <br><strong>Todos são editáveis:</strong> se a captação estiver errada, corrija aqui — o que
+    você digitar prevalece sobre o que foi lido.
+  </div>
+
+  <div class="grid">
+
+    <!-- ============================ EXTRAÍDO DO TR -->
+    <div>
+      <h2 class="secao">Extraído do Termo de Referência</h2>
+      <p class="sub">Preenchido automaticamente. Confira e ajuste se necessário.</p>
+
+      <fieldset>
+        <legend>Objeto e enquadramento</legend>
+
+        <div class="campo">
+          <label for="objeto">Objeto da licitação</label>
+          <textarea id="objeto" rows="3">EVENTUAL AQUISIÇÃO DE CALÇADOS DE SEGURANÇA PARA ATENDIMENTO DA DEMANDA DA CBTU/STU-REC</textarea>
+          <div class="origem"><span class="selo alta">alta</span><span class="fonte">TR · <b>item 1</b> · p. 1 — copiado literalmente, não redigitado</span></div>
+        </div>
+
+        <div class="campo">
+          <label for="natureza">Natureza do objeto</label>
+          <select id="natureza">
+            <option selected>material</option>
+            <option>serviço comum</option>
+            <option>serviço com dedicação exclusiva de mão de obra</option>
+            <option>serviço comum de engenharia</option>
+            <option>obra de engenharia</option>
+          </select>
+          <div class="origem"><span class="selo alta">alta</span><span class="fonte">TR · <b>item 2</b> · p. 2 — "CLASSIFICAÇÃO DO MATERIAL" · define qual modelo será usado</span></div>
+        </div>
+
+        <div class="campo">
+          <label>Sistema de Registro de Preços</label>
+          <div class="radio-linha">
+            <label><input type="radio" name="srp" checked> Sim</label>
+            <label><input type="radio" name="srp"> Não</label>
+          </div>
+          <div class="origem" id="ex-srp"></div>
+        </div>
+
+        <div class="campo">
+          <label for="criterio">Critério de julgamento</label>
+          <select id="criterio">
+            <option selected>menor preço</option>
+            <option>maior desconto</option>
+          </select>
+          <div class="origem"><span class="selo alta">alta</span><span class="fonte">TR · <b>item 10.1</b> · p. 14 — "escolhida a proposta com menor valor global"</span></div>
+        </div>
+
+        <div class="campo">
+          <label for="fornecimento">Forma de fornecimento</label>
+          <input type="text" id="fornecimento" value="parcelada (por pedido da ata)">
+          <div class="origem"><span class="selo alta">alta</span><span class="fonte">TR · <b>item 12.2</b> · p. 15 · em material substitui o regime de execução</span></div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Participação</legend>
+        <div class="campo">
+          <label>Consórcio</label>
+          <div class="radio-linha">
+            <label><input type="radio" name="cons"> Permitido</label>
+            <label><input type="radio" name="cons" checked> Vedado</label>
+          </div>
+          <div class="origem" id="ex-cons"></div>
+        </div>
+        <div class="campo">
+          <label for="subc">Subcontratação</label>
+          <select id="subc">
+            <option>permitida</option>
+            <option selected>vedada, com ressalva</option>
+            <option>vedada</option>
+          </select>
+          <div class="origem" id="ex-subc"></div>
+        </div>
+        <div class="campo">
+          <label for="meepp">Tratamento ME/EPP</label>
+          <select id="meepp">
+            <option selected>ampla concorrência com preferência</option>
+            <option>exclusiva para ME/EPP</option>
+            <option>cota reservada</option>
+          </select>
+          <div class="origem" id="ex-meepp"></div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Prazos</legend>
+        <div class="campo">
+          <label for="vig">Prazo de vigência</label>
+          <input type="text" id="vig" value="4 meses">
+          <div class="origem"><span class="selo alta">alta</span><span class="fonte">TR · <b>item 17.1</b> · p. 18</span></div>
+        </div>
+        <div class="campo">
+          <label for="ent">Prazo de entrega</label>
+          <input type="text" id="ent" value="2 meses">
+          <div class="origem"><span class="selo alta">alta</span><span class="fonte">TR · <b>item 17.1</b> · p. 18</span></div>
+        </div>
+        <div class="campo">
+          <label for="unid">Unidade requisitante</label>
+          <input type="text" id="unid" value="COSET — Coordenação Operacional de Segurança do Trabalho">
+          <div class="origem"><span class="selo media">média</span><span class="fonte">TR · cabeçalho · p. 1 — confira a grafia</span></div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Garantia</legend>
+        <div class="campo">
+          <label for="gar-perc">Garantia de execução</label>
+          <input type="text" id="gar-perc" value="5% do valor total contratual">
+          <div class="origem"><span class="selo alta">alta</span><span class="fonte">TR · <b>item 15.2.1</b> · p. 17 · lido dentro da cláusula de garantia</span></div>
+        </div>
+        <div class="campo">
+          <label for="gar-prazo">Prazo para apresentar a garantia</label>
+          <input type="text" id="gar-prazo" value="10 dias úteis da assinatura">
+          <div class="origem"><span class="selo alta">alta</span><span class="fonte">TR · <b>item 15.2.1</b> · p. 17</span></div>
+        </div>
+        <div class="campo">
+          <label for="gar-prod">Garantia técnica do produto</label>
+          <input type="text" id="gar-prod" placeholder="não localizada no TR">
+          <div class="origem"><span class="selo pendente">pendente</span><span class="fonte">não encontrada — informe se houver</span></div>
+        </div>
+      </fieldset>
+
+      <!-- ==================== HABILITAÇÃO: seção própria ==================== -->
+      <fieldset class="habilitacao">
+        <legend>Habilitação técnica</legend>
+        <p class="sub" style="margin:-6px 0 14px">
+          O edital <strong>replica</strong> estes requisitos. Confira um a um: o que ficar
+          marcado é transcrito para a seção 9 do edital.
+        </p>
+
+        <div class="campo">
+          <label>Atestado de capacidade técnica</label>
+          <div class="radio-linha">
+            <label><input type="radio" name="atest" checked> Exigido</label>
+            <label><input type="radio" name="atest"> Dispensado no TR</label>
+          </div>
+          <div class="origem"><span class="selo alta">alta</span><span class="fonte">TR · <b>item 11.1</b> · p. 15</span></div>
+        </div>
+
+        <div class="campo">
+          <label>Qualificação técnico-<strong>operacional</strong> <span class="fonte" style="font-weight:400">— da empresa</span></label>
+          <div class="radio-linha">
+            <label><input type="radio" name="qto"> Exigida</label>
+            <label><input type="radio" name="qto" checked> Não exigida</label>
+          </div>
+          <div class="origem"><span class="selo pendente">não consta</span><span class="fonte">típico fora de engenharia · em obra: registro no CREA/CAU, acervo (CAO/CAT-O) e atestado com parcelas de maior relevância</span></div>
+        </div>
+
+        <div class="campo">
+          <label>Qualificação técnico-<strong>profissional</strong> <span class="fonte" style="font-weight:400">— do responsável técnico</span></label>
+          <div class="radio-linha">
+            <label><input type="radio" name="qtp"> Exigida</label>
+            <label><input type="radio" name="qtp" checked> Não exigida</label>
+          </div>
+          <div class="origem"><span class="selo pendente">não consta</span><span class="fonte">em obra: RT registrado, vínculo com o quadro permanente e ART · desligá-la retira os itens 9.19.7 a 9.19.12 do modelo</span></div>
+        </div>
+
+        <div class="campo">
+          <label for="conselho">Registro em conselho profissional</label>
+          <select id="conselho">
+            <option selected>não exigido</option>
+            <option>CREA</option><option>CAU</option><option>CRA</option>
+            <option>CRM</option><option>CRQ</option><option>CRC</option>
+          </select>
+        </div>
+
+        <div class="campo">
+          <label>Requisitos transcritos do TR <span class="fonte" style="font-weight:400">— seção 11</span></label>
+          <ul class="requisitos">
+            <li>
+              <label><input type="checkbox" checked>
+                <span><b>11.1</b> Atestado(s) em papel timbrado, assinado(s) por responsável em nível
+                equivalente a Superintendente ou Diretor, comprovando fornecimento compatível.</span></label>
+            </li>
+            <li>
+              <label><input type="checkbox" checked>
+                <span><b>11.2</b> A não apresentação tempestiva, ou atestado com características
+                distintas, implica inabilitação.</span></label>
+            </li>
+            <li>
+              <label><input type="checkbox" checked>
+                <span><b>11.3</b> Certificado de Aprovação e Ensaio Elétrico — a ser apresentado pelo
+                melhor classificado por ocasião da aceitação da proposta.</span></label>
+            </li>
+          </ul>
+          <div class="origem"><span class="selo alta">alta</span><span class="fonte">3 requisitos lidos da seção 11 do TR · desmarque o que não deve ir ao edital</span></div>
+        </div>
+      </fieldset>
+    </div>
+
+    <!-- ============================ DECISÃO DO PREGOEIRO -->
+    <div>
+      <h2 class="secao">Definido pelo pregoeiro</h2>
+      <p class="sub">O TR não traz estas informações. São decisões do certame.</p>
+
+      <fieldset>
+        <legend>Identificação do certame</legend>
+        <div class="campo">
+          <label for="pe">Número do pregão</label>
+          <input type="text" id="pe" placeholder="90007/2026">
+        </div>
+        <div class="campo">
+          <label for="proc">Processo administrativo</label>
+          <input type="text" id="proc" placeholder="038/2026">
+        </div>
+        <div class="campo">
+          <label for="modalidade">Modalidade</label>
+          <select id="modalidade">
+            <option selected>Pregão Eletrônico</option>
+            <option>LEC — Licitação Eletrônica CBTU</option>
+          </select>
+          <div class="origem"><span class="fonte">LEC é a modalidade das obras de engenharia</span></div>
+        </div>
+        <div class="campo">
+          <label for="adj">Adjudicação</label>
+          <select id="adj">
+            <option>por item</option>
+            <option selected>por grupo</option>
+            <option>por preço global</option>
+          </select>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Datas</legend>
+        <div class="campo">
+          <label for="ini">Início do acolhimento de propostas</label>
+          <input type="date" id="ini">
+        </div>
+        <div class="campo">
+          <label for="sessao">Data da sessão</label>
+          <input type="date" id="sessao">
+          <div class="origem" id="aviso-prazo">
+            <span class="selo pendente">regra R14</span>
+            <span class="fonte">material com menor preço exige 8 dias úteis de divulgação</span>
+          </div>
+        </div>
+        <div class="campo">
+          <label for="hora">Hora da sessão</label>
+          <input type="time" id="hora" value="09:00">
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Disputa</legend>
+        <div class="campo">
+          <label for="modo">Modo de disputa</label>
+          <select id="modo">
+            <option selected>aberto</option>
+            <option>aberto e fechado</option>
+            <option disabled>fechado — sem redação aprovada</option>
+            <option disabled>fechado e aberto — sem redação aprovada</option>
+          </select>
+          <div class="origem"><span class="fonte">RILC art. 121 · fechado isolado é vedado em menor preço e maior desconto</span></div>
+        </div>
+        <div class="campo">
+          <label for="interv">Intervalo mínimo entre lances</label>
+          <input type="text" id="interv" placeholder="R$ 1,00">
+        </div>
+        <div class="campo">
+          <label>Orçamento estimado <span class="fonte" style="font-weight:400">— não se pergunta, decorre do critério</span></label>
+          <div class="derivado" id="orcamento-derivado">Sigiloso</div>
+          <div class="origem" id="aviso-orc"></div>
+        </div>
+        <div class="campo" id="campo-valor" style="display:none">
+          <label for="valor">Valor total estimado</label>
+          <input type="text" id="valor" placeholder="R$ 0,00">
+        </div>
+      </fieldset>
+    </div>
+  </div>
+
+  <!-- ==================== SISTEMA DE REGISTRO DE PREÇOS ==================== -->
+  <!-- Só existe em SRP. Nasce oculto e é revelado pelo campo lá em cima — assim,
+       mesmo sem o JavaScript rodar, não aparece por engano num processo comum. -->
+  <fieldset class="srp" id="bloco-srp" style="display:none">
+    <legend>Sistema de Registro de Preços</legend>
+    <p class="sub" style="margin:-6px 0 16px">
+      Esta seção só existe porque o TR identificou <strong>registro de preços</strong>
+      (item 3, p. 2). Marcando "Não" no campo <em>Sistema de Registro de Preços</em>, lá em
+      cima, ela desaparece — e nem a Ata nem estas decisões entram no processo.
+      <br>Aqui se define a <strong>minuta da Ata</strong>, que vai como anexo do edital.
+    </p>
+
+    <div class="grid">
+      <div>
+        <div class="campo">
+          <label>Haverá Intenção de Registro de Preços (IRP)?</label>
+          <div class="radio-linha">
+            <label><input type="radio" name="irp" checked> Sim</label>
+            <label><input type="radio" name="irp"> Não</label>
+          </div>
+          <div class="origem" id="ex-irp"></div>
+        </div>
+
+        <div class="campo" id="campo-participantes">
+          <label for="participantes">Entes participantes <span class="fonte" style="font-weight:400">— quem aderiu à IRP</span></label>
+          <textarea id="participantes" rows="3" placeholder="Um por linha, com o quantitativo. Preencher após o encerramento do prazo da IRP."></textarea>
+          <div class="origem"><span class="fonte">alimenta o item 3.2 da minuta da Ata:
+            "Além do gerenciador, <b>[não há OU são participantes as]</b> empresas públicas ou
+            sociedades de economia mista…"</span></div>
+        </div>
+
+        <div class="campo">
+          <label for="validade-ata">Validade da Ata</label>
+          <select id="validade-ata">
+            <option selected>12 meses</option>
+            <option>12 meses, prorrogável por igual período</option>
+            <option>6 meses</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <div class="campo">
+          <label>A área demandante aceita adesões à Ata?</label>
+          <div class="radio-linha">
+            <label><input type="radio" name="adesao"> Sim, aceita</label>
+            <label><input type="radio" name="adesao" checked> Não aceita</label>
+          </div>
+          <div class="origem" id="ex-adesao"></div>
+        </div>
+
+        <div class="campo" id="campo-justif-adesao">
+          <label for="justif-adesao">Item do ETP que justifica a recusa</label>
+          <input type="text" id="justif-adesao" placeholder="ex.: item 5.3 dos estudos técnicos preliminares">
+          <div class="origem"><span class="selo pendente">obrigatório</span><span class="fonte">o modelo
+            exige a remissão: "conforme justificativa apresentada no item XXX dos estudos técnicos"</span></div>
+        </div>
+
+        <div class="campo" id="campo-limite-adesao" style="display:none">
+          <label for="limite-adesao">Limite total das adesões</label>
+          <input type="text" id="limite-adesao" value="o dobro do quantitativo de cada item registrado" readonly class="derivado">
+          <div class="origem"><span class="selo alta">item 4.8 da Ata</span><span class="fonte">limite fixo do modelo, não editável aqui</span></div>
+        </div>
+      </div>
+    </div>
+  </fieldset>
+</main>
+
+<div class="barra">
+  <span class="contador">16 campos lidos do TR · 9 a definir · <strong>0 pendências</strong></span>
+  <button class="secundario" type="button">Salvar rascunho</button>
+  <button class="primario" type="button">Gerar edital</button>
+</div>
+
+<script>
+  // R11 — sigiloso é a regra na CBTU; divulgado só decorre do maior desconto.
+  // Por isso o campo é DERIVADO, não perguntado.
+  const criterio = document.getElementById('criterio');
+  const campoValor = document.getElementById('campo-valor');
+  const avisoOrc = document.getElementById('aviso-orc');
+  const orcDerivado = document.getElementById('orcamento-derivado');
+
+  function aplicarR11(){
+    const desconto = criterio.value === 'maior desconto';
+    orcDerivado.textContent = desconto ? 'Divulgado' : 'Sigiloso';
+    avisoOrc.innerHTML = desconto
+      ? '<span class="selo media">regra R11</span><span class="fonte">maior desconto incide sobre ' +
+        'preço de referência, que precisa ser público — o sigilo fica impossível</span>'
+      : '<span class="selo alta">padrão da GOLIC</span><span class="fonte">RILC art. 34 e art. 83</span>';
+    campoValor.style.display = desconto ? 'block' : 'none';
+  }
+  criterio.addEventListener('change', aplicarR11);
+
+  // R14 — prazo mínimo de divulgação, contado em dias úteis
+  const natureza = document.getElementById('natureza');
+  const ini = document.getElementById('ini');
+  const sessao = document.getElementById('sessao');
+  const avisoPrazo = document.getElementById('aviso-prazo');
+
+  const diasUteis = (a, b) => {
+    let n = 0, d = new Date(a);
+    while (d < b) { d.setDate(d.getDate()+1); if (d.getDay() !== 0 && d.getDay() !== 6) n++; }
+    return n;
+  };
+
+  function aplicarR14(){
+    const material = natureza.value === 'material';
+    const minimo = material ? 8 : 15;
+    if (!ini.value || !sessao.value) {
+      avisoPrazo.innerHTML = '<span class="selo pendente">regra R14</span><span class="fonte">' +
+        (material ? 'material' : 'serviço ou obra') + ' com este critério exige ' + minimo + ' dias úteis</span>';
+      return;
+    }
+    const u = diasUteis(new Date(ini.value), new Date(sessao.value));
+    const ok = u >= minimo;
+    avisoPrazo.innerHTML = '<span class="selo ' + (ok ? 'alta' : 'pendente') + '">' +
+      u + ' dias úteis</span><span class="fonte">' +
+      (ok ? 'dentro do mínimo de ' + minimo + ' (RILC art. 18)'
+          : 'ABAIXO do mínimo de ' + minimo + ' — RILC art. 18. O edital não será gerado.') + '</span>';
+  }
+  [natureza, ini, sessao, criterio].forEach(e => e.addEventListener('change', aplicarR14));
+
+  // ---------------------------------------------- entrada do TR
+  const area = document.getElementById('area-upload');
+  const input = document.getElementById('arquivo');
+  const vazio = document.getElementById('upload-vazio');
+  const lendo = document.getElementById('upload-lendo');
+  const pronto = document.getElementById('upload-pronto');
+  const barra = document.getElementById('progresso');
+  const etapa = document.getElementById('etapa');
+
+  document.getElementById('btn-escolher').addEventListener('click', () => input.click());
+  document.getElementById('btn-trocar').addEventListener('click', () => {
+    pronto.style.display = 'none'; vazio.style.display = ''; area.classList.remove('ok');
+    input.value = '';
+  });
+  input.addEventListener('change', e => { if (e.target.files[0]) receber(e.target.files[0]); });
+
+  ['dragenter','dragover'].forEach(ev =>
+    area.addEventListener(ev, e => { e.preventDefault(); area.classList.add('sobre'); }));
+  ['dragleave','drop'].forEach(ev =>
+    area.addEventListener(ev, e => { e.preventDefault(); area.classList.remove('sobre'); }));
+  area.addEventListener('drop', e => {
+    const f = e.dataTransfer.files[0];
+    if (!f) return;
+    if (f.type !== 'application/pdf') { alert('O arquivo precisa ser um PDF.'); return; }
+    receber(f);
+  });
+
+  function receber(arquivo){
+    vazio.style.display = 'none'; pronto.style.display = 'none';
+    lendo.style.display = ''; barra.style.width = '0';
+    // No sistema real, aqui o PDF vai para o extrator (config/extrair-do-tr.py).
+    // No protótipo, só a sequência de estados da interface.
+    const etapas = [
+      [20, 'extraindo o texto do PDF'],
+      [45, 'localizando objeto e natureza da contratação'],
+      [70, 'lendo participação, garantia e prazos'],
+      [90, 'conferindo as regras do RILC'],
+      [100, 'pronto']
+    ];
+    let i = 0;
+    const passo = setInterval(() => {
+      if (i >= etapas.length) {
+        clearInterval(passo);
+        lendo.style.display = 'none'; pronto.style.display = '';
+        area.classList.add('ok');
+        document.getElementById('nome-arquivo').textContent = arquivo.name;
+        return;
+      }
+      barra.style.width = etapas[i][0] + '%';
+      etapa.textContent = etapas[i][1];
+      i++;
+    }, 420);
+  }
+
+  // -------------------------- correção manual do que foi lido do TR
+  // Quando o pregoeiro altera um campo extraído, a procedência muda: aquilo já
+  // não veio do TR. O relatório de geração precisa registrar essa diferença.
+  // Campos com explicação dinâmica são redesenhados pelo próprio explicador; aqui só
+  // se registra que foram corrigidos, para o explicador exibir o aviso. Sem isso, os
+  // dois tratadores disputam a mesma linha e a explicação apaga o "corrigido".
+  const EXPLICADORES = {};
+  const corrigidos = new Set();
+
+  document.querySelectorAll('.grid > div:first-child .campo').forEach(campo => {
+    const origem = campo.querySelector('.origem');
+    if (!origem) return;
+    const original = origem.innerHTML;
+
+    if (origem.id) {
+      const controles = campo.querySelectorAll('input, select, textarea');
+      const iniciais = new Map();
+      controles.forEach(c => iniciais.set(c, c.type === 'radio' ? c.checked : c.value));
+      const marcar = () => {
+        const mudou = [...controles].some(c =>
+          (c.type === 'radio' ? c.checked : c.value) !== iniciais.get(c));
+        mudou ? corrigidos.add(origem.id) : corrigidos.delete(origem.id);
+        if (EXPLICADORES[origem.id]) EXPLICADORES[origem.id]();
+        atualizarContador();
+      };
+      controles.forEach(c => { c.addEventListener('change', marcar); c.addEventListener('input', marcar); });
+      return;
+    }
+    const controles = campo.querySelectorAll('input, select, textarea');
+    const valoresIniciais = new Map();
+    controles.forEach(c => valoresIniciais.set(c, c.type === 'radio' ? c.checked : c.value));
+
+    const conferir = () => {
+      const mudou = [...controles].some(c =>
+        (c.type === 'radio' ? c.checked : c.value) !== valoresIniciais.get(c));
+      if (mudou) {
+        origem.innerHTML = '<span class="selo media">corrigido</span>' +
+          '<span class="fonte">alterado pelo pregoeiro — prevalece sobre a leitura do TR ' +
+          '<button type="button" class="link desfazer">desfazer</button></span>';
+        origem.querySelector('.desfazer').addEventListener('click', () => {
+          controles.forEach(c => {
+            if (c.type === 'radio') c.checked = valoresIniciais.get(c);
+            else c.value = valoresIniciais.get(c);
+          });
+          origem.innerHTML = original;
+          controles.forEach(c => c.dispatchEvent(new Event('change')));
+          atualizarContador();
+        });
+      } else {
+        origem.innerHTML = original;
+      }
+      atualizarContador();
+    };
+    controles.forEach(c => {
+      c.addEventListener('change', conferir);
+      c.addEventListener('input', conferir);
+    });
+  });
+
+  function atualizarContador(){
+    const total = document.querySelectorAll('.grid > div:first-child .campo').length;
+    const corrigidos = document.querySelectorAll('.grid > div:first-child .selo.media').length -
+                       document.querySelectorAll('.grid > div:first-child .selo.media:not(:first-child)').length * 0;
+    const mexidos = [...document.querySelectorAll('.grid > div:first-child .origem')]
+      .filter(o => o.textContent.includes('corrigido')).length;
+    document.querySelector('.contador').innerHTML =
+      total + ' campos lidos do TR' +
+      (mexidos ? ' · <strong>' + mexidos + ' corrigido(s) por você</strong>' : '') +
+      ' · 9 a definir';
+  }
+
+  // ---- habilitação: a profissional comanda blocos inteiros do modelo
+  const qtp = document.querySelectorAll('input[name=qtp]');
+  const qto = document.querySelectorAll('input[name=qto]');
+  const conselho = document.getElementById('conselho');
+
+  function aplicarHabilitacao(){
+    const profissional = qtp[0].checked;
+    const operacional = qto[0].checked;
+    const aviso = qtp[0].closest('.campo').querySelector('.origem');
+    aviso.innerHTML = profissional
+      ? '<span class="selo alta">exigida</span><span class="fonte">entram no edital: RT registrado no ' +
+        'conselho, vínculo com o quadro permanente, regras de substituição e ART — itens 9.19.7 a 9.19.12</span>'
+      : '<span class="selo pendente">não exigida</span><span class="fonte">os itens 9.19.7 a 9.19.12 ' +
+        'saem do edital, conforme a nota do próprio modelo de obra</span>';
+
+    const avisoOp = qto[0].closest('.campo').querySelector('.origem');
+    avisoOp.innerHTML = operacional
+      ? '<span class="selo alta">exigida</span><span class="fonte">entram: registro no conselho, acervo ' +
+        '(CAO/CAT-O) e atestado com as parcelas de maior relevância e quantitativos mínimos</span>'
+      : '<span class="selo pendente">não exigida</span><span class="fonte">típico fora de engenharia</span>';
+
+    // conselho passa a ser obrigatório quando há qualificação técnica de engenharia
+    const precisa = profissional || operacional;
+    conselho.style.borderColor = (precisa && conselho.value === 'não exigido') ? 'var(--vermelho)' : '';
+    const av = conselho.closest('.campo').querySelector('.origem') ||
+               (() => { const d = document.createElement('div'); d.className = 'origem';
+                        conselho.closest('.campo').appendChild(d); return d; })();
+    av.innerHTML = (precisa && conselho.value === 'não exigido')
+      ? '<span class="selo pendente">falta</span><span class="fonte">com qualificação técnica exigida, ' +
+        'o conselho precisa ser informado</span>'
+      : '';
+  }
+  [...qtp, ...qto].forEach(e => e.addEventListener('change', aplicarHabilitacao));
+  conselho.addEventListener('change', aplicarHabilitacao);
+
+  // requisitos desmarcados não vão para o edital
+  document.querySelectorAll('ul.requisitos input[type=checkbox]').forEach(c => {
+    c.addEventListener('change', () => {
+      const total = document.querySelectorAll('ul.requisitos input').length;
+      const marcados = document.querySelectorAll('ul.requisitos input:checked').length;
+      const origem = document.querySelector('ul.requisitos').closest('.campo').querySelector('.origem');
+      origem.innerHTML = marcados === total
+        ? '<span class="selo alta">alta</span><span class="fonte">' + total +
+          ' requisitos lidos da seção 11 do TR · desmarque o que não deve ir ao edital</span>'
+        : '<span class="selo media">' + marcados + ' de ' + total + '</span><span class="fonte">' +
+          (total - marcados) + ' requisito(s) do TR NÃO serão transcritos — decisão sua, fica no relatório</span>';
+    });
+  });
+
+  // ---- efeito de cada opção sobre o texto do edital
+  // Os números vêm da contagem nos modelos oficiais V2025, não de estimativa.
+  const TR_ORIGEM = {
+    srp:   'TR · <b>item 3</b> · p. 2',
+    cons:  'TR · <b>item 14.2</b> · p. 16 — "não é aberta a cooperativas e consórcios"',
+    subc:  'TR · <b>item 14.3</b> · p. 16 — "vedada [...] admitindo-se, no entanto"',
+    meepp: 'TR · <b>item 14.1</b> · p. 16',
+  };
+  const efeito = (id, selo, texto, origem) => {
+    const foiCorrigido = corrigidos.has(id);
+    document.getElementById(id).innerHTML =
+      `<span class="selo ${foiCorrigido ? 'media' : selo}">${foiCorrigido ? 'corrigido' : selo}</span>` +
+      `<span class="fonte">` +
+      (foiCorrigido
+        ? '<b>alterado pelo pregoeiro</b> — prevalece sobre a leitura do TR. '
+        : (origem ? origem + ' · ' : '')) +
+      `${texto}</span>`;
+  };
+
+  function explicarSRP(){
+    const sim = document.querySelector('input[name=srp]').checked;
+    efeito('ex-srp', 'alta', sim
+      ? '<b>entram 3 seções</b> — Do Registro de Preço, Da Ata de Registro de Preços e Da ' +
+        'Formação do Cadastro de Reserva — e a <b>minuta da Ata</b> como anexo, com 11 seções ' +
+        'próprias. A numeração seguinte desloca em +3.'
+      : 'o edital não terá as seções de registro de preços nem a minuta da Ata.', TR_ORIGEM.srp);
+  }
+
+  function explicarConsorcio(){
+    const permitido = document.querySelectorAll('input[name=cons]')[0].checked;
+    efeito('ex-cons', 'alta', permitido
+      ? '<b>entram 10 cláusulas</b> (3.3 a 3.3.9) com as regras próprias do consorciado: ' +
+        'vedação de participar em mais de um consórcio, responsabilidade solidária, prazo de ' +
+        'duração mínimo, compromisso de não alterar constituição ou BDI, habilitação ' +
+        'individual de cada consorciada e credenciamento pela empresa líder.'
+      : 'fica apenas a cláusula de vedação (3.2). As 10 cláusulas de consórcio não entram.',
+      TR_ORIGEM.cons);
+  }
+
+  function explicarSubc(){
+    const v = document.getElementById('subc').value;
+    efeito('ex-subc', 'alta', v === 'permitida'
+      ? '<b>entram 6 cláusulas</b> (3.4 a 3.4.5) com limites, parcelas vedadas, habilitação da ' +
+        'subcontratada e responsabilidade da contratada.'
+      : v === 'vedada, com ressalva'
+        ? 'entra a vedação com a ressalva do TR — confira se a ressalva está transcrita corretamente.'
+        : 'entra apenas a vedação expressa (3.2).', TR_ORIGEM.subc);
+  }
+
+  function explicarMeepp(){
+    const v = document.getElementById('meepp').value;
+    const comum = 'a seção 6 (Tratamento Favorecido a ME e EPP) e a seção 10 (Tratamento ' +
+                  'Diferenciado) entram, somando 11 cláusulas em 5 seções do edital';
+    efeito('ex-meepp', 'alta',
+      v === 'exclusiva para ME/EPP'
+        ? '<b>item exclusivo</b>: empresa de maior porte não disputa. ' + comum + '.'
+      : v === 'cota reservada'
+        ? '<b>cota reservada</b>: o item se divide entre cota principal e cota de ME/EPP — ' +
+          'informe o percentual. ' + comum + '.'
+        : 'ampla concorrência, com direito de preferência e regularização fiscal tardia. ' + comum + '.',
+      TR_ORIGEM.meepp);
+  }
+
+  Object.assign(EXPLICADORES, {
+    'ex-srp': explicarSRP, 'ex-cons': explicarConsorcio,
+    'ex-subc': explicarSubc, 'ex-meepp': explicarMeepp,
+  });
+
+  // ---------------------------------------------- bloco de SRP
+  const blocoSRP = document.getElementById('bloco-srp');
+  const irp = document.querySelectorAll('input[name=irp]');
+  const adesao = document.querySelectorAll('input[name=adesao]');
+  const campoParticipantes = document.getElementById('campo-participantes');
+  const campoJustif = document.getElementById('campo-justif-adesao');
+  const campoLimite = document.getElementById('campo-limite-adesao');
+
+  function mostrarSRP(){
+    blocoSRP.style.display = document.querySelector('input[name=srp]').checked ? '' : 'none';
+  }
+
+  function explicarIRP(){
+    const sim = irp[0].checked;
+    campoParticipantes.style.display = sim ? '' : 'none';
+    efeito('ex-irp', sim ? 'alta' : 'media', sim
+      ? 'o processo fica disponível por <b>8 dias úteis</b> para que outros interessados da ' +
+        'Administração manifestem participação. Quem aderir entra como <b>ente participante</b> ' +
+        'e seus quantitativos somam ao total registrado.'
+      : 'sem IRP, a Ata terá apenas a CBTU/STU-REC como <b>órgão gerenciador</b>, sem participantes. ' +
+        'O item 3.2 da minuta sai como "não há participantes".');
+  }
+
+  function explicarAdesao(){
+    const aceita = adesao[0].checked;
+    campoJustif.style.display = aceita ? 'none' : '';
+    campoLimite.style.display = aceita ? '' : 'none';
+    efeito('ex-adesao', 'alta', aceita
+      ? '<b>entram 12 cláusulas</b> (seção 4 da Ata): quem pode aderir, exigência de justificativa ' +
+        'da vantagem, consulta e aceitação prévias do fornecedor, possibilidade de a CBTU rejeitar ' +
+        'adesão que prejudique seus próprios contratos, prazos de efetivação e o limite do item 4.8 — ' +
+        'o total das adesões não pode exceder <b>o dobro do quantitativo de cada item</b>.'
+      : 'entra apenas a cláusula 4.1: "não será admitida a adesão à ata de registro de preços ' +
+        'decorrente desta licitação, conforme justificativa apresentada no item XXX dos estudos ' +
+        'técnicos" — <b>a remissão ao ETP é obrigatória</b>.');
+  }
+
+  document.querySelectorAll('input[name=srp]').forEach(e => e.addEventListener('change', mostrarSRP));
+  irp.forEach(e => e.addEventListener('change', explicarIRP));
+  adesao.forEach(e => e.addEventListener('change', explicarAdesao));
+
+  explicarSRP(); explicarConsorcio(); explicarSubc(); explicarMeepp();
+  mostrarSRP(); explicarIRP(); explicarAdesao();
+  aplicarR11(); aplicarR14(); atualizarContador();
+</script>
+</body>
+</html>
