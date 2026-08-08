@@ -6,8 +6,7 @@ Compras** da CBTU/STU-REC.
 A ideia: o pregoeiro envia o PDF do Termo de Referência, o sistema lê dele o que já está
 definido, pergunta só o que falta, e monta o edital.
 
-👉 **[Abrir o formulário](https://SEU-USUARIO.github.io/elaborador-edital-golic/)**
-*(o endereço muda depois que o GitHub Pages for ativado)*
+👉 **[Abrir o formulário](https://carlosrsbb.github.io/elaborador-edital-golic/)**
 
 ---
 
