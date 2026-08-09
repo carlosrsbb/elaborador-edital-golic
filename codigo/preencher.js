@@ -134,6 +134,10 @@ export function preencher(achados, { origens, explicadores, aoTerminar } = {}) {
   const ehEngenharia = /engenharia/i.test(String(natureza));
   if (campoParcelas) {
     campoParcelas.style.display = ehEngenharia ? '' : 'none';
+    // limpa sempre: sem isso, a tabela do documento anterior sobrevive escondida
+    // e reaparece no próximo que for de engenharia
+    $('#parcelas-conteudo').innerHTML = '';
+    $('#ex-parcelas').innerHTML = '';
     if (ehEngenharia && parc) {
       const conteudo = $('#parcelas-conteudo');
       if (Array.isArray(parc.valor)) {

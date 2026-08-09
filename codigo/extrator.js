@@ -378,6 +378,14 @@ function habilitacao(tr) {
 function extrair(tr) {
   const r = [];
 
+  // Projeto Básico acompanha obra de engenharia; Termo de Referência, serviço de
+  // engenharia e os demais objetos. O par documento × objeto é conferido adiante.
+  r.push(achar(tr, 'tipo_documento', [
+    ['PROJETO\\s+B[ÁA]SICO', 'Projeto Básico', 'alta'],
+    ['TERMO\\s+DE\\s+REFER[ÊE]NCIA', 'Termo de Referência', 'alta'],
+  ], 'PB acompanha obra; TR acompanha serviço de engenharia e demais objetos',
+    { abertura: 3000 }));
+
   // Antes de tudo: alguns TRs se autoclassificam, citando o RILC. É o sinal mais
   // confiável que existe, e vale procurar no documento inteiro.
   //   "O objeto pretendido pode ser caracterizado como SERVIÇO COMUM DE ENGENHARIA,
@@ -577,18 +585,35 @@ export async function extrairDoArquivo(arquivo) {
   const achados = extrair(tr);
 
   // R18 — engenharia sem parcelas de maior relevância não é lacuna do pregoeiro:
-  // é defeito do documento, e ele volta para a área demandante.
-  const natureza = achados.find(a => a.campo === 'natureza_objeto')?.valor || '';
+  // é defeito do documento, e ele volta para a área demandante. Vale para o
+  // Projeto Básico (obra) e para o Termo de Referência (serviço de engenharia).
+  const natureza = String(achados.find(a => a.campo === 'natureza_objeto')?.valor || '');
+  const tipoDoc  = String(achados.find(a => a.campo === 'tipo_documento')?.valor || 'documento');
   const parcelas = achados.find(a => a.campo === 'parcelas_relevantes')?.valor;
-  const engenharia = /engenharia/i.test(String(natureza));
+  const engenharia = /engenharia/i.test(natureza);
+  const ehPB = /projeto\s+b[áa]sico/i.test(tipoDoc);
+
+  // Par esperado: PB ↔ obra · TR ↔ serviço de engenharia
+  let incoerencia = null;
+  if (engenharia) {
+    if (ehPB && !/obra/i.test(natureza)) {
+      incoerencia = `Documento é ${tipoDoc}, mas o objeto foi lido como "${natureza}". ` +
+        'O Projeto Básico acompanha obra de engenharia; serviço de engenharia vem em ' +
+        'Termo de Referência. Confira antes de gerar.';
+    } else if (!ehPB && /obra/i.test(natureza)) {
+      incoerencia = `Documento é ${tipoDoc}, mas o objeto foi lido como "${natureza}". ` +
+        'Obra de engenharia costuma vir em Projeto Básico. Confira antes de gerar.';
+    }
+  }
 
   return {
     achados,
+    incoerencia,
     devolver: engenharia && !parcelas
-      ? 'O documento é de engenharia e não define as parcelas de maior relevância ' +
-        'técnica, com os quantitativos mínimos. Sem elas não há como redigir a ' +
-        'qualificação técnico-operacional. O documento precisa voltar à área ' +
-        'demandante para que as defina.'
+      ? `Este ${tipoDoc} é de ${ehPB ? 'obra' : 'serviço'} de engenharia e não define as ` +
+        'parcelas de maior relevância técnica, com os quantitativos mínimos. Sem elas não ' +
+        'há como redigir a qualificação técnico-operacional. O documento precisa voltar à ' +
+        'área demandante para que as defina.'
       : null,
     resumo: {
       blocos: tr.blocos.length,

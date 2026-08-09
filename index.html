@@ -78,6 +78,7 @@
   ul.requisitos input[type=checkbox]{margin-top:3px;flex:none;width:16px;height:16px}
   ul.requisitos li:has(input:not(:checked)){background:#fafafa;color:#999}
   ul.requisitos li:has(input:not(:checked)) span{text-decoration:line-through}
+  .aviso.incoerencia{border-left-color:#e07000;background:#fff4e8;font-weight:500}
   /* R18: bloqueio — o documento volta à área demandante */
   .devolver{border:2px solid var(--vermelho);background:#fdf0ee;border-radius:10px;
             padding:16px 20px;margin-bottom:20px}
@@ -136,6 +137,8 @@
     <p class="devolver-rodape">Não é campo para o pregoeiro preencher: a definição é técnica e
       cabe a quem demandou a contratação.</p>
   </div>
+
+  <div class="aviso incoerencia" id="incoerencia" style="display:none"></div>
 
   <div class="aviso">
     <strong>Protótipo de interface.</strong> Os campos da esquerda vieram da leitura automática do
@@ -864,7 +867,7 @@ import { extrairDoArquivo } from './codigo/extrator.js';
 import { preencher } from './codigo/preencher.js';
 
 window.__extrairTR = async (arquivo) => {
-  const { achados, resumo, devolver } = await extrairDoArquivo(arquivo);
+  const { achados, resumo, devolver, incoerencia } = await extrairDoArquivo(arquivo);
   const f = window.__form;
 
   // leitura nova: o que antes era correção deixa de ser
@@ -887,8 +890,13 @@ window.__extrairTR = async (arquivo) => {
   alerta.style.display = devolver ? '' : 'none';
   if (devolver) document.getElementById('devolver-motivo').textContent = devolver;
 
+  // incoerência entre tipo de documento e objeto: aviso, não bloqueio
+  const av = document.getElementById('incoerencia');
+  av.style.display = incoerencia ? '' : 'none';
+  if (incoerencia) av.textContent = '⚠ ' + incoerencia;
+
   window.__achados = achados;   // disponível no console, para conferência
-  return { achados, resumo, devolver };
+  return { achados, resumo, devolver, incoerencia };
 };
 </script>
 </body>
