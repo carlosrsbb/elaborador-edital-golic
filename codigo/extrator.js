@@ -264,7 +264,10 @@ class TR {
   itensDaSecao(numero) {
     if (!numero) return [];
     const numerados = this.blocos.filter(b => b.item === numero || b.item.startsWith(numero + '.'));
-    const inicio = this.blocos.findIndex(b => b.item === numero && b.texto.length < 90);
+    // Última ocorrência do título, não a primeira: a primeira é a do sumário, onde
+    // o título seguinte vem logo a seguir e o recorte sai vazio.
+    let inicio = -1;
+    this.blocos.forEach((b, i) => { if (b.item === numero && b.texto.length < 90) inicio = i; });
     if (inicio < 0) return numerados;
     let fim = this.blocos.length;
     for (let j = inicio + 1; j < this.blocos.length; j++) {
@@ -358,11 +361,39 @@ function habilitacao(tr) {
     }
     if (parcelas.length) break;
   }
+  let origemParcelas = parcelas.length ? `tabela · colunas: ${cabecalhoAchado}` : '';
+
+  /* Sem tabela, as parcelas podem vir em MARCADORES dentro da seção — é assim no
+     Projeto Básico. Nem todo marcador é parcela: os primeiros costumam ser
+     documentos (registro no conselho, atestado). Ficam de fora. */
+  if (!parcelas.length) {
+    const DOCUMENTO = /registro|certid[ãa]o|inscri[çc][ãa]o|atestado|acervo|\bCAT\b|\bCREA\b|\bCAU\b|respons[áa]vel\s+t[ée]cnico|v[íi]nculo|comprova[çc][ãa]o\s+de\s+que/i;
+    const MARCADOR = /^\s*[●•▪◦o]\s*[-–—]?\s*(.+)$/;
+    const chave = t => t.normalize('NFKD').replace(/[̀-ͯ]/g, '')
+                        .toLowerCase().replace(/[^a-z0-9]/g, '');
+    const vistas = new Set();
+    for (const b of itens) {
+      const m = MARCADOR.exec(b.texto);
+      if (!m) continue;
+      const texto = m[1].trim().replace(/[.;]+$/, '');
+      if (texto.length < 12 || DOCUMENTO.test(texto)) continue;
+      const k = chave(texto);
+      if (vistas.has(k)) continue;
+      vistas.add(k);
+      parcelas.push({ servico: texto, quantidade_prevista: '', quantidade_minima: '',
+                      item: b.item || sec || '' });
+    }
+    if (parcelas.length) origemParcelas = 'lista de marcadores, sem tabela — quantitativos não informados';
+  }
+
+  const semQuantidade = parcelas.length && parcelas.every(p => !p.quantidade_minima);
   achados.push(parcelas.length
     ? { campo: 'parcelas_relevantes', valor: parcelas, item: sec || '', pagina: 0,
-        trecho: `${parcelas.length} parcela(s) · colunas: ${cabecalhoAchado}`.slice(0, 280),
-        confianca: 'alta',
-        observacao: 'transcritas para a qualificação técnico-operacional do edital' }
+        trecho: `${parcelas.length} parcela(s) · ${origemParcelas}`.slice(0, 280),
+        confianca: semQuantidade ? 'media' : 'alta',
+        observacao: semQuantidade
+          ? '⚠ sem quantitativo mínimo — confira, é ele que baliza o atestado'
+          : 'transcritas para a qualificação técnico-operacional do edital' }
     : { campo: 'parcelas_relevantes', valor: null, item: '', pagina: 0, trecho: '',
         confianca: 'pendente',
         observacao: 'todo TR ou PB de engenharia deve destacá-las — ver regra R18' });
@@ -606,15 +637,25 @@ export async function extrairDoArquivo(arquivo) {
     }
   }
 
+  // Duas pendências distintas: não ter as parcelas, ou tê-las sem quantitativo.
+  // O quantitativo mínimo é o que baliza o atestado do licitante.
+  const semQuantitativo = Array.isArray(parcelas) && parcelas.length &&
+                          parcelas.every(p => !p.quantidade_minima);
+  let pendencia = null;
+  if (engenharia && !parcelas) {
+    pendencia = `Este ${tipoDoc} é de ${ehPB ? 'obra' : 'serviço'} de engenharia e ` +
+      'não define as parcelas de maior relevância técnica. Sem elas não há como redigir ' +
+      'a qualificação técnico-operacional do edital.';
+  } else if (engenharia && semQuantitativo) {
+    pendencia = `Este ${tipoDoc} define ${parcelas.length} parcela(s) de maior relevância ` +
+      'técnica, mas não informa o quantitativo mínimo de cada uma. É o quantitativo que ' +
+      'baliza o atestado do licitante — sem ele, a exigência fica sem parâmetro objetivo.';
+  }
+
   return {
     achados,
     incoerencia,
-    devolver: engenharia && !parcelas
-      ? `Este ${tipoDoc} é de ${ehPB ? 'obra' : 'serviço'} de engenharia e não define as ` +
-        'parcelas de maior relevância técnica, com os quantitativos mínimos. Sem elas não ' +
-        'há como redigir a qualificação técnico-operacional. O documento precisa voltar à ' +
-        'área demandante para que as defina.'
-      : null,
+    devolver: pendencia,
     resumo: {
       blocos: tr.blocos.length,
       tabelas: tabelas.length,
