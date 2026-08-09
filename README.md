@@ -10,6 +10,10 @@ definido, pergunta só o que falta, e monta o edital.
 
 ---
 
+> 📋 **Retomando o trabalho noutra sessão?** Comece pelo [DOSSIE.md](DOSSIE.md) — traz as
+> decisões tomadas, as regras, os caminhos já descartados e as armadilhas que cada documento
+> real revelou.
+
 ## O que já funciona
 
 **Leitura automática do TR.** O extrator localiza 24 informações no Termo de Referência —
