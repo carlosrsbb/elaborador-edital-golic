@@ -508,8 +508,9 @@
 
 <div class="barra">
   <span class="contador">16 campos lidos do TR · 9 a definir · <strong>0 pendências</strong></span>
-  <button class="secundario" type="button">Salvar rascunho</button>
-  <button class="primario" type="button">Gerar edital</button>
+  <input type="file" id="arquivo-modelo" accept=".docx" hidden>
+  <button class="secundario" type="button" id="btn-modelo">Escolher modelo…</button>
+  <button class="primario" type="button" id="btn-gerar">Gerar edital</button>
 </div>
 
 <script>
@@ -899,6 +900,82 @@
 <script type="module">
 import { extrairDoArquivo } from './codigo/extrator.js';
 import { preencher } from './codigo/preencher.js';
+
+import { gerarEdital } from './codigo/gerador.js';
+
+/* O modelo oficial vem da máquina do pregoeiro: são documentos internos da GOLIC
+   e não ficam neste repositório, que é público. Escolhido uma vez, fica na
+   memória da página. */
+let modeloBuffer = null, modeloNome = '';
+const btnModelo = document.getElementById('btn-modelo');
+const inputModelo = document.getElementById('arquivo-modelo');
+const btnGerar = document.getElementById('btn-gerar');
+
+btnModelo.addEventListener('click', () => inputModelo.click());
+inputModelo.addEventListener('change', async e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  modeloBuffer = await f.arrayBuffer();
+  modeloNome = f.name;
+  btnModelo.textContent = '✅ ' + (f.name.length > 32 ? f.name.slice(0, 30) + '…' : f.name);
+  btnModelo.title = f.name;
+});
+
+const valor = s => (document.querySelector(s) || {}).value || '';
+const marcado = (nome, i) => (document.querySelectorAll(`input[name=${nome}]`)[i] || {}).checked;
+
+btnGerar.addEventListener('click', async () => {
+  if (!modeloBuffer) {
+    alert('Escolha primeiro o modelo oficial do tipo de contratação.\n\n' +
+          'Ele fica na sua máquina — não é enviado a lugar nenhum.');
+    return;
+  }
+  btnGerar.disabled = true;
+  const antes = btnGerar.textContent;
+  btnGerar.textContent = 'Gerando…';
+  try {
+    const dados = {
+      numero_licitacao: valor('#pe'),
+      numero_processo: valor('#proc'),
+      unidade_requisitante: valor('#unid'),
+      modalidade: valor('#modalidade'),
+      criterio_julgamento: valor('#criterio'),
+      julgamento_por: valor('#adj'),
+      regime_execucao: valor('#fornecimento'),
+      forma_fornecimento: valor('#fornecimento'),
+      modo_disputa: valor('#modo'),
+      data_inicio_acolhimento: valor('#ini'),
+      data_sessao: valor('#sessao'),
+      hora_sessao: valor('#hora'),
+      objeto_resumido: valor('#objeto'),
+      admite_consorcio: marcado('cons', 0) ? 'sim' : 'não',
+      admite_subcontratacao: valor('#subc'),
+      admite_cooperativa: 'não',
+    };
+    const { arquivo, relatorio } = await gerarEdital(modeloBuffer, dados);
+    const nome = `EDITAL ${dados.numero_licitacao || 'sem-numero'}`.replace(/[\\/:*?"<>|]/g, '-');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(arquivo);
+    a.download = nome + '.docx';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+
+    const pend = window.__encaminhamento
+      ? `\nPendência técnica: ${window.__encaminhamento}.` : '';
+    alert(`Edital gerado a partir de ${modeloNome}.\n\n` +
+      `Blocos removidos: ${relatorio.blocos_excluidos.join(', ') || 'nenhum'}\n` +
+      `Parágrafos excluídos: ${relatorio.paragrafos_removidos}\n` +
+      `Itens do preâmbulo preenchidos: ${relatorio.preambulo_preenchido}\n` +
+      `Substituições no corpo: ${relatorio.substituicoes_no_corpo}\n` +
+      `Cabeçalho e rodapé: ${relatorio.cabecalho_rodape}${pend}\n\n` +
+      `Confira antes de publicar.`);
+  } catch (erro) {
+    alert('Não consegui gerar o edital.\n\n' + erro.message);
+  } finally {
+    btnGerar.disabled = false;
+    btnGerar.textContent = antes;
+  }
+});
 
 window.__extrairTR = async (arquivo) => {
   const { achados, resumo, devolver, incoerencia } = await extrairDoArquivo(arquivo);
